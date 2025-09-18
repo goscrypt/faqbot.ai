@@ -1,424 +1,390 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Offline FAQ Assistant</title>
-<style>
-  :root { color-scheme: light dark; --bg:#0b0c0f; --fg:#e6e8eb; --muted:#9aa3ab; --accent:#4f46e5; --card:#151821; }
-  body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; margin:0; background:var(--bg); color:var(--fg); }
-  header { padding:16px 20px; border-bottom:1px solid #1f2430; display:flex; align-items:center; gap:12px; }
-  header h1 { font-size:18px; margin:0; }
-  main { max-width:980px; margin:0 auto; padding:20px; display:grid; gap:16px; }
-  section { background:var(--card); border:1px solid #1f2430; border-radius:12px; padding:16px; }
-  h2 { margin:0 0 10px; font-size:16px; }
-  .row { display:flex; gap:8px; flex-wrap:wrap; }
-  input[type="file"], button, select, input[type="text"], textarea {
-    background:#0e1118; color:var(--fg); border:1px solid #2a3140; border-radius:10px; padding:10px 12px; font-size:14px;
-  }
-  button { cursor:pointer; background:linear-gradient(180deg, #5b54f6, #4038d9); border:none; }
-  button.secondary { background:#0e1118; border:1px solid #2a3140; }
-  .pill { font-size:12px; color:var(--muted); }
-  .grid { display:grid; gap:8px; }
-  .cols-2 { grid-template-columns: 1fr 1fr; }
-  .result { white-space:pre-wrap; line-height:1.5; }
-  .badge { display:inline-block; padding:2px 8px; border:1px solid #2a3140; border-radius:999px; font-size:12px; color:var(--muted); }
-  .table { width:100%; border-collapse:collapse; }
-  .table th, .table td { text-align:left; padding:8px; border-bottom:1px solid #212737; font-size:13px; vertical-align:top; }
-  .small { font-size:12px; color:var(--muted); }
-  .ok { color:#38bdf8; }
-  .warn { color:#f59e0b; }
-  .err { color:#f97373; }
-  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; }
-  .hidden { display:none; }
-</style>
+  <meta charset="utf-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+  />
+  <title>Offline FAQ Assistant</title>
+
+  <!-- .docx support (browser-only) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.2/mammoth.browser.min.js" integrity="sha512-eCq3O6HkkluWty0q2/8q8cTgk6qIxbd0y8F4wOLLcJYbWQe6yIWU6+0wM3d5LM3nV12xFQ0e2z9bWjL8Fa0SAg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+  <style>
+    :root { color-scheme: light dark; --bg:#0b0c0f; --fg:#e6e8eb; --muted:#9aa3ab; --accent:#4f46e5; --card:#151821; --border:#1f2430; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; background:var(--bg); color:var(--fg); }
+    header { padding:16px 20px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:12px; }
+    h1 { margin:0; font-size:18px; }
+    main { max-width:1024px; margin:0 auto; padding:20px; display:grid; gap:16px; }
+    section { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:16px; }
+    h2 { margin:0 0 10px; font-size:16px; }
+    .row { display:flex; gap:8px; flex-wrap:wrap; }
+    input[type="file"], button, select, input[type="text"] {
+      background:#0e1118; color:var(--fg); border:1px solid #2a3140; border-radius:10px; padding:10px 12px; font-size:14px;
+    }
+    button { cursor:pointer; background:linear-gradient(180deg, #5b54f6, #4038d9); border:none; }
+    button.secondary { background:#0e1118; border:1px solid #2a3140; }
+    .pill { font-size:12px; color:var(--muted); }
+    .badge { display:inline-block; padding:2px 8px; border:1px solid #2a3140; border-radius:999px; font-size:12px; color:var(--muted); }
+    .result { white-space:pre-wrap; line-height:1.5; }
+    .table { width:100%; border-collapse:collapse; }
+    .table th, .table td { text-align:left; padding:8px; border-bottom:1px solid #212737; font-size:13px; vertical-align:top; }
+    .small { font-size:12px; color:var(--muted); }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; }
+  </style>
 </head>
 <body>
-<header>
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="#4f46e5" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l3 7h7l-5.5 4 2.5 7-7-4.5L5 20l2.5-7L2 9h7l3-7z"/></svg>
-  <h1>Offline FAQ Assistant</h1>
-  <span id="status" class="pill">Loading…</span>
-</header>
+  <header>
+    <h1>Offline FAQ Assistant</h1>
+    <span id="status" class="pill">Loading…</span>
+  </header>
 
-<main>
-  <section>
-    <h2>Load training document</h2>
-    <div class="row">
-      <input type="file" id="fileInput" accept=".txt,.csv,.docx" />
-
-      <select id="format">
-        <option value="auto" selected>Auto-detect format</option>
-        <option value="txt">TXT (Q: / A: pairs)</option>
-        <option value="csv">CSV (headers: question,answer)</option>
-      </select>
-      <button id="clear">Clear index</button>
-      <span id="fileInfo" class="pill"></span>
-    </div>
-    <p class="small">Accepted formats:
-      <span class="badge">TXT with lines like "Q: ..." and "A: ..."</span>
-      <span class="badge">CSV with "question,answer" columns</span>
-    </p>
-  </section>
-
-  <section>
-    <h2>Ask a question</h2>
-    <div class="row">
-      <input id="query" type="text" placeholder="e.g., How do I handle a customer upset about delays?" style="flex:1"/>
-      <button id="ask">Ask</button>
-    </div>
-    <p class="small">Tip: The assistant finds the closest FAQ entries and rewrites an improved, clearer response.</p>
-  </section>
-
-  <section>
-    <h2>Result</h2>
-    <div class="grid cols-2">
-      <div>
-        <div class="badge">Improved response</div>
-        <div id="improved" class="result"></div>
+  <main>
+    <section>
+      <h2>Load training document</h2>
+      <div class="row">
+        <input type="file" id="fileInput" accept=".txt,.csv,.docx" />
+        <select id="format">
+          <option value="auto" selected>Auto-detect format</option>
+          <option value="txt">TXT (Q: / A: pairs)</option>
+          <option value="csv">CSV (question,answer)</option>
+        </select>
+        <button id="clear" class="secondary">Clear index</button>
+        <span id="fileInfo" class="pill"></span>
       </div>
-      <div>
-        <div class="badge">Matched references</div>
-        <table class="table" id="matches">
-          <thead><tr><th>#</th><th>Question</th><th>Answer</th><th>Similarity</th></tr></thead>
-          <tbody></tbody>
-        </table>
+      <p class="small">
+        Formats: <span class="badge">TXT with lines “Q: …”, “A: …” (multi-line allowed)</span>
+        <span class="badge">CSV headers: “question,answer”</span>
+        <span class="badge">DOCX: Q/A content extracted as text</span>
+      </p>
+    </section>
+
+    <section>
+      <h2>Ask a question</h2>
+      <div class="row" style="gap:10px">
+        <input id="query" type="text" placeholder="e.g., How do I handle a customer upset about delays?" style="flex:1"/>
+        <button id="ask">Ask</button>
       </div>
-    </div>
-    <div class="grid" style="margin-top:10px">
+      <p class="small">The assistant finds the closest FAQ entries semantically and rewrites a clearer, complete response.</p>
+    </section>
+
+    <section>
+      <h2>Result</h2>
+      <div class="badge">Improved response</div>
+      <div id="improved" class="result"></div>
+      <div style="height:8px"></div>
+      <div class="badge">Matched references</div>
+      <table class="table" id="matches">
+        <thead><tr><th>#</th><th>Question</th><th>Answer</th><th>Similarity</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <div style="height:8px"></div>
       <div class="badge">Why this answer</div>
       <div id="why" class="small"></div>
-    </div>
-  </section>
+    </section>
 
-  <section>
-    <h2>Model and offline status</h2>
-    <div id="modelStatus" class="small"></div>
-  </section>
-</main>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.2/mammoth.browser.min.js"></script>
+    <section>
+      <h2>Model status</h2>
+      <div id="modelStatus" class="small"></div>
+    </section>
+  </main>
 
-<script type="module">
-// Lightweight, in-browser AI using transformers.js
-// Pipelines:
-//  - feature-extraction: Xenova/all-MiniLM-L6-v2 (semantic embeddings)
-//  - text2text-generation: Xenova/t5-small (clarity rewrite)
+  <script type="module">
+    // Ensure DOM exists before querying
+    window.addEventListener('DOMContentLoaded', () => {
+      const el = (id) => document.getElementById(id);
 
-const el = (id) => document.getElementById(id);
-const state = {
-  faqs: [],          // {question, answer, text}
-  embeddings: [],    // Float32Array per faq
-  fe: null,          // feature-extraction pipeline
-  rewriter: null,    // text2text-generation pipeline
-};
+      const state = {
+        faqs: [],          // {question, answer, text}
+        embeddings: [],    // Float32Array per faq
+        fe: null,          // feature-extraction pipeline (MiniLM)
+        rewriter: null,    // text2text-generation pipeline (T5-small)
+      };
 
-function setStatus(msg, cls='') {
-  const s = el('status');
-  s.textContent = msg;
-  s.className = 'pill ' + cls;
-}
-function setModelStatus(msg) {
-  el('modelStatus').textContent = msg;
-}
+      function setStatus(msg) { el('status').textContent = msg; }
+      function setModelStatus(msg) { el('modelStatus').textContent = msg; }
+      function escapeHTML(s) { return s.replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
 
-function normalize(vec) {
-  let sum = 0;
-  for (let i = 0; i < vec.length; i++) sum += vec[i] * vec[i];
-  const norm = Math.sqrt(sum) || 1;
-  const out = new Float32Array(vec.length);
-  for (let i = 0; i < vec.length; i++) out[i] = vec[i] / norm;
-  return out;
-}
-function cosine(a, b) {
-  let s = 0;
-  for (let i = 0; i < a.length; i++) s += a[i] * b[i];
-  return s;
-}
+      // CSV parser that respects basic quoted fields with commas
+      function parseCSV(text) {
+        const rows = [];
+        let row = [], cur = '', inQuotes = false;
+        for (let i = 0; i < text.length; i++) {
+          const ch = text[i], next = text[i+1];
+          if (ch === '"' && !inQuotes) { inQuotes = true; continue; }
+          if (ch === '"' && inQuotes) {
+            if (next === '"') { cur += '"'; i++; continue; }
+            inQuotes = false; continue;
+          }
+          if (ch === ',' && !inQuotes) { row.push(cur); cur = ''; continue; }
+          if ((ch === '\n' || ch === '\r') && !inQuotes) {
+            if (cur.length || row.length) { row.push(cur); rows.push(row); row = []; cur=''; }
+            continue;
+          }
+          cur += ch;
+        }
+        if (cur.length || row.length) { row.push(cur); rows.push(row); }
 
-async function loadModels() {
-  setStatus('Loading models…');
-  setModelStatus('Initializing transformers.js (this may take a moment the first time)…');
-
-  // dynamic import so the HTML remains one file
-  const { pipeline } = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.16.1');
-
-  // Feature extraction (embeddings)
-  state.fe = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
-  setModelStatus('Embeddings ready (all-MiniLM-L6-v2). Preparing rewrite model…');
-
-  // Text-to-text generation (rewriter)
-  // t5-small is compact; we’ll steer it with a clear instruction prompt.
-  state.rewriter = await pipeline('text2text-generation', 'Xenova/t5-small');
-
-  setStatus('Ready', 'ok');
-  setModelStatus('Models loaded. This page and model files are cached for offline use after first load.');
-}
-
-function detectFormat(text) {
-  if (el('format').value !== 'auto') return el('format').value;
-  const hasCSVComma = /[,;]/.test(text.split('\n')[0]) && /question|answer/i.test(text);
-  if (hasCSVComma) return 'csv';
-  if (/^Q:\s*/mi.test(text) && /^A:\s*/mi.test(text)) return 'txt';
-  return 'txt';
-}
-
-function parseTXT(text) {
-  // Supports blocks like:
-  // Q: ...
-  // A: ...
-  const lines = text.split(/\r?\n/);
-  const faqs = [];
-  let q = '', a = '';
-  for (const line of lines) {
-    if (line.trim().toLowerCase().startsWith('q:')) {
-      if (q || a) { // flush previous
-        if (q && a) faqs.push({ question: q.trim(), answer: a.trim(), text: (q + ' ' + a).trim() });
-        q = ''; a = '';
+        if (rows.length === 0) return [];
+        const header = rows[0].map(h => h.trim().toLowerCase());
+        const qIdx = header.findIndex(h => h.includes('question'));
+        const aIdx = header.findIndex(h => h.includes('answer'));
+        if (qIdx === -1 || aIdx === -1) return [];
+        const faqs = [];
+        for (let i = 1; i < rows.length; i++) {
+          const cols = rows[i];
+          const q = (cols[qIdx] || '').trim();
+          const a = (cols[aIdx] || '').trim();
+          if (q && a) faqs.push({ question: q, answer: a, text: `${q} ${a}` });
+        }
+        return faqs;
       }
-      q = line.replace(/^q:\s*/i, '');
-    } else if (line.trim().toLowerCase().startsWith('a:')) {
-      a = (a ? a + ' ' : '') + line.replace(/^a:\s*/i, '');
-    } else {
-      // continuation line; attach to last seen (prefer answer)
-      if (a) a += ' ' + line.trim();
-      else if (q) q += ' ' + line.trim();
-    }
-  }
-  if (q && a) faqs.push({ question: q.trim(), answer: a.trim(), text: (q + ' ' + a).trim() });
-  return faqs;
-}
 
-function parseCSV(text) {
-  // Minimal CSV parser for two columns: question,answer (header row required)
-  const rows = text.split(/\r?\n/).filter(Boolean);
-  if (rows.length === 0) return [];
-  const header = rows[0].split(',').map(h => h.trim().toLowerCase());
-  const qIdx = header.findIndex(h => h.includes('question'));
-  const aIdx = header.findIndex(h => h.includes('answer'));
-  const faqs = [];
-  for (let i = 1; i < rows.length; i++) {
-    const cols = rows[i].split(',');
-    const q = (cols[qIdx] || '').trim();
-    const a = (cols[aIdx] || '').trim();
-    if (q && a) faqs.push({ question: q, answer: a, text: `${q} ${a}` });
-  }
-  return faqs;
-}
+      function parseTXT(text) {
+        // Supports:
+        // Q: ...
+        // A: ...
+        const lines = text.split(/\r?\n/);
+        const faqs = [];
+        let q = '', a = '';
+        for (const raw of lines) {
+          const line = raw.trim();
+          if (/^q:\s*/i.test(line)) {
+            if (q && a) faqs.push({ question: q.trim(), answer: a.trim(), text: `${q} ${a}`.trim() });
+            q = line.replace(/^q:\s*/i, '');
+            a = '';
+          } else if (/^a:\s*/i.test(line)) {
+            const part = line.replace(/^a:\s*/i, '');
+            a = a ? `${a} ${part}` : part;
+          } else if (line.length) {
+            if (a) a += ' ' + line;
+            else if (q) q += ' ' + line;
+          }
+        }
+        if (q && a) faqs.push({ question: q.trim(), answer: a.trim(), text: `${q} ${a}`.trim() });
+        return faqs;
+      }
 
-async function embed(text) {
-  const out = await state.fe(text, { pooling: 'mean', normalize: true });
-  // transformers.js returns a Tensor-like; .data is a TypedArray
-  return new Float32Array(out.data);
-}
+      function detectFormat(text) {
+        if (el('format').value !== 'auto') return el('format').value;
+        const header = text.split(/\r?\n/)[0] || '';
+        if (/question/i.test(text) && /answer/i.test(text) && header.includes(',')) return 'csv';
+        if (/^q:\s*/mi.test(text) && /^a:\s*/mi.test(text)) return 'txt';
+        return 'txt';
+      }
 
-async function buildIndex(faqs) {
-  state.faqs = faqs;
-  state.embeddings = [];
-  for (const item of faqs) {
-    const vec = await embed(item.text);
-    state.embeddings.push(vec);
-  }
-}
+      async function loadModels() {
+        try {
+          setStatus('Loading models…');
+          setModelStatus('Initializing transformers.js…');
+          const { pipeline } = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.16.1');
 
-function topK(queryVec, k = 3) {
-  const scores = state.embeddings.map((vec, idx) => ({ idx, score: cosine(queryVec, vec) }));
-  scores.sort((a, b) => b.score - a.score);
-  return scores.slice(0, Math.min(k, scores.length));
-}
+          state.fe = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
+          setModelStatus('Embeddings ready (all-MiniLM-L6-v2). Loading rewrite model…');
 
-function renderMatches(matches) {
-  const tbody = document.querySelector('#matches tbody');
-  tbody.innerHTML = '';
-  matches.forEach((m, i) => {
-    const item = state.faqs[m.idx];
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${i + 1}</td>
-      <td class="mono">${escapeHTML(item.question).slice(0,180)}</td>
-      <td class="mono">${escapeHTML(item.answer).slice(0,220)}</td>
-      <td class="small">${m.score.toFixed(3)}</td>
-    `;
-    tbody.appendChild(tr);
-  });
-}
+          state.rewriter = await pipeline('text2text-generation', 'Xenova/t5-small');
+          setStatus('Ready');
+          setModelStatus('Models loaded. After this first load, your browser caches them for offline use.');
+        } catch (err) {
+          console.error(err);
+          setStatus('Semantic-only mode');
+          setModelStatus('Failed to load one or more models. Semantic search may work if embeddings load; rewriting will fall back to heuristics.');
+        }
+      }
 
-function escapeHTML(s) {
-  return s.replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
-}
+      async function embed(text) {
+        if (!state.fe) throw new Error('Embedding model not loaded');
+        const out = await state.fe(text, { pooling: 'mean', normalize: true });
+        return new Float32Array(out.data);
+      }
 
-function synthPrompt(userQuery, contexts) {
-  // Instruction steering for T5-small (kept concise)
-  const guide = [
-    'Improve clarity and completeness.',
-    'Answer the user question directly.',
-    'Use 3-6 sentences. If steps help, use brief numbered steps.',
-    'Keep tone friendly and professional.',
-    'If policy or escalation applies, include it tersely.',
-    'Add one short example when useful.',
-  ].join(' ');
-  const ctx = contexts.map((c, i) => `Ref${i+1} Q: ${c.question}\nRef${i+1} A: ${c.answer}`).join('\n');
-  // T5 expects a "task: input" style; we’ll use a neutral "paraphrase/rewrite" frame.
-  return `paraphrase: ${guide}\nUser: ${userQuery}\n${ctx}`;
-}
+      function cosine(a, b) {
+        let s = 0;
+        for (let i = 0; i < a.length; i++) s += a[i] * b[i];
+        return s;
+      }
 
-async function rewriteAnswer(userQuery, contexts) {
-  // Build a candidate base by stitching the top answers; the rewriter will make it clearer
-  const stitched = contexts.map((c, i) => `• ${c.answer}`).join('\n');
-  const prompt = synthPrompt(userQuery, contexts) + `\nCandidate:\n${stitched}\nOutput:`;
-  try {
-    const out = await state.rewriter(prompt, {
-      max_new_tokens: 160,
-      temperature: 0.4,
-      top_p: 0.9,
-      repetition_penalty: 1.05,
-    });
-    const text = (Array.isArray(out) ? out[0].generated_text : out.generated_text) || '';
-    return text.trim();
-  } catch (e) {
-    // Fallback: structured rewrite without the model
-    return heuristicRewrite(userQuery, contexts);
-  }
-}
+      async function buildIndex(faqs) {
+        state.faqs = faqs;
+        state.embeddings = [];
+        for (const item of faqs) {
+          const vec = await embed(item.text);
+          state.embeddings.push(vec);
+        }
+      }
 
-function heuristicRewrite(userQuery, contexts) {
-  const points = [];
-  const merged = contexts.map(c => c.answer).join(' ');
-  // Basic heuristics
-  if (!/apolog/i.test(merged) && /delay|late|wait/i.test(userQuery)) {
-    points.push('Start with a brief apology and acknowledge the delay.');
-  }
-  if (!/step|1\.|2\./i.test(merged)) {
-    points.push('Outline practical steps the employee should follow.');
-  }
-  if (!/escalate|supervisor|ticket/i.test(merged)) {
-    points.push('Offer an escalation path if the first fix is not possible.');
-  }
-  const example = `Example: “I understand the delay is frustrating. Here’s what I can do right now… If needed, I can escalate this to our specialist.”`;
-  return [
-    `Here’s a clearer response tailored to your question:`,
-    `1. Acknowledge the concern and set expectations.`,
-    `2. Provide the most relevant solution based on our guidelines.`,
-    `3. Offer alternatives or escalation if needed.`,
-    example
-  ].join('\n');
-}
+      function topK(queryVec, k = 3) {
+        const scores = state.embeddings.map((vec, idx) => ({ idx, score: cosine(queryVec, vec) }));
+        scores.sort((a, b) => b.score - a.score);
+        return scores.slice(0, Math.min(k, scores.length));
+      }
 
-async function handleAsk() {
-  const q = el('query').value.trim();
-  if (!q) return;
-  if (!state.fe || state.embeddings.length === 0) {
-    el('improved').textContent = 'Load a training document first.';
-    return;
-  }
-  setStatus('Thinking…');
-  const qVec = await embed(q);
-  const matches = topK(qVec, 3);
-  renderMatches(matches);
-  const contexts = matches.map(m => state.faqs[m.idx]);
-  const improved = await rewriteAnswer(q, contexts);
+      function renderMatches(matches) {
+        const tbody = document.querySelector('#matches tbody');
+        tbody.innerHTML = '';
+        matches.forEach((m, i) => {
+          const item = state.faqs[m.idx];
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${i + 1}</td>
+            <td class="mono">${escapeHTML(item.question).slice(0, 180)}</td>
+            <td class="mono">${escapeHTML(item.answer).slice(0, 220)}</td>
+            <td class="small">${m.score.toFixed(3)}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }
 
-  el('improved').textContent = improved || '(No suggestion generated)';
-  el('why').textContent = `Matched ${contexts.length} reference(s) using semantic similarity (MiniLM). The response was rewritten for clarity and completeness using a compact transformer model.`;
-  setStatus('Ready', 'ok');
-}
+      function synthPrompt(userQuery, contexts) {
+        const guide = [
+          'Improve clarity and completeness.',
+          'Answer the user question directly.',
+          'Use 3-6 sentences. Include brief numbered steps when helpful.',
+          'Keep tone friendly and professional.',
+          'Add one short example when useful.'
+        ].join(' ');
+        const ctx = contexts.map((c, i) => `Ref${i+1} Q: ${c.question}\nRef${i+1} A: ${c.answer}`).join('\n');
+        return `paraphrase: ${guide}\nUser: ${userQuery}\n${ctx}`;
+      }
 
-// File handling
-el('file').addEventListener('change', async (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
+      function heuristicRewrite(userQuery, contexts) {
+        const merged = contexts.map(c => c.answer).join(' ');
+        const lines = [];
+        if (/delay|late|wait/i.test(userQuery) && !/apolog/i.test(merged)) {
+          lines.push('Start with a brief apology and acknowledge the delay.');
+        }
+        if (!/step|1\.|2\./i.test(merged)) {
+          lines.push('Outline practical steps the employee should follow.');
+        }
+        if (!/escalate|supervisor|ticket|specialist/i.test(merged)) {
+          lines.push('Offer an escalation path if the first fix is not possible.');
+        }
+        const example = 'Example: “I understand the delay is frustrating. Here’s what I can do right now… If needed, I can escalate this to our specialist.”';
+        return [
+          'Here’s a clearer response tailored to your question:',
+          '1. Acknowledge the concern and set expectations.',
+          '2. Provide the most relevant solution based on our guidelines.',
+          '3. Offer alternatives or escalation if needed.',
+          example,
+          lines.length ? ('Notes: ' + lines.join(' ')) : ''
+        ].filter(Boolean).join('\n');
+      }
 
-  if (file.name.endsWith('.docx')) {
-    const reader = new FileReader();
-    reader.onload = function(event) {
-      mammoth.convertToHtml({ arrayBuffer: event.target.result })
-        .then(async function(result) {
-          const html = result.value;
-          const text = html.replace(/<[^>]+>/g, ''); // Strip HTML tags
-          const faqs = parseTXT(text); // Reuse your existing parser
-          if (faqs.length === 0) {
-            el('fileInfo').textContent = 'No Q/A pairs found in DOCX.';
+      async function rewriteAnswer(userQuery, contexts) {
+        if (!state.rewriter) {
+          return heuristicRewrite(userQuery, contexts);
+        }
+        const stitched = contexts.map((c) => `• ${c.answer}`).join('\n');
+        const prompt = synthPrompt(userQuery, contexts) + `\nCandidate:\n${stitched}\nOutput:`;
+        try {
+          const out = await state.rewriter(prompt, {
+            max_new_tokens: 160,
+            temperature: 0.4,
+            top_p: 0.9,
+            repetition_penalty: 1.05,
+          });
+          const text = (Array.isArray(out) ? out[0].generated_text : out.generated_text) || '';
+          return text.trim();
+        } catch (e) {
+          console.warn('Rewriter failed, using heuristic.', e);
+          return heuristicRewrite(userQuery, contexts);
+        }
+      }
+
+      async function handleAsk() {
+        const q = el('query').value.trim();
+        if (!q) return;
+        if (!state.faqs.length) {
+          el('improved').textContent = 'Load a training document first.';
+          return;
+        }
+        setStatus('Thinking…');
+        try {
+          const qVec = await embed(q);
+          const matches = topK(qVec, 3);
+          renderMatches(matches);
+          const contexts = matches.map(m => state.faqs[m.idx]);
+          const improved = await rewriteAnswer(q, contexts);
+          el('improved').textContent = improved || '(No suggestion generated)';
+          el('why').textContent = 'Matched references via semantic similarity (MiniLM). Response rewritten for clarity and completeness.';
+          setStatus('Ready');
+        } catch (err) {
+          console.error(err);
+          el('improved').textContent = 'Model not ready. Try reloading the page or check your network.';
+          setStatus('Model error');
+        }
+      }
+
+      // File handling
+      el('fileInput').addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const isDocx = /\.docx$/i.test(file.name);
+
+        try {
+          setStatus('Reading…');
+          let text = '';
+
+          if (isDocx) {
+            const reader = new FileReader();
+            const html = await new Promise((resolve, reject) => {
+              reader.onload = (event) => {
+                mammoth.convertToHtml({ arrayBuffer: event.target.result })
+                  .then((res) => resolve(res.value))
+                  .catch(reject);
+              };
+              reader.onerror = reject;
+              reader.readAsArrayBuffer(file);
+            });
+            // Strip tags to plain text
+            text = html.replace(/<[^>]+>/g, '\n').replace(/\n{2,}/g, '\n').trim();
+          } else {
+            text = await file.text();
+          }
+
+          const fmt = isDocx ? 'txt' : detectFormat(text);
+          let faqs = [];
+          if (fmt === 'csv') {
+            faqs = parseCSV(text);
+          } else {
+            faqs = parseTXT(text);
+          }
+
+          if (!faqs.length) {
+            el('fileInfo').textContent = isDocx ? 'No Q/A pairs found in DOCX.' : 'No Q/A pairs found.';
+            setStatus('Ready');
             return;
           }
-          el('fileInfo').textContent = `Loaded ${faqs.length} Q/A pairs from DOCX. Building index…`;
+
+          el('fileInfo').textContent = `Loaded ${faqs.length} Q/A pairs (${isDocx ? 'DOCX' : fmt.toUpperCase()}). Building index…`;
           setStatus('Indexing…');
           await buildIndex(faqs);
-          setStatus('Ready', 'ok');
-        });
-    };
-    reader.readAsArrayBuffer(file);
-    return;
-  }
+          el('fileInfo').textContent = `Indexed ${faqs.length} entries.`;
+          setStatus('Ready');
+        } catch (err) {
+          console.error(err);
+          el('fileInfo').textContent = 'Failed to read or parse the file.';
+          setStatus('Ready');
+        }
+      });
 
-  // Fallback for TXT or CSV
-  const txt = await file.text();
-  const fmt = detectFormat(txt);
-  let faqs = [];
-  try {
-    faqs = fmt === 'csv' ? parseCSV(txt) : parseTXT(txt);
-  } catch {
-    faqs = parseTXT(txt);
-  }
-  if (faqs.length === 0) {
-    el('fileInfo').textContent = 'No Q/A pairs found.';
-    el('file').value = '';
-    return;
-  }
-  el('fileInfo').textContent = `Loaded ${faqs.length} Q/A pairs (${fmt.toUpperCase()}). Building index…`;
-  setStatus('Indexing…');
-  await buildIndex(faqs);
-  setStatus('Ready', 'ok');
-});
+      el('ask').addEventListener('click', handleAsk);
+      el('query').addEventListener('keydown', (e) => { if (e.key === 'Enter') handleAsk(); });
+      el('clear').addEventListener('click', () => {
+        state.faqs = [];
+        state.embeddings = [];
+        document.querySelector('#matches tbody').innerHTML = '';
+        el('improved').textContent = '';
+        el('why').textContent = '';
+        el('fileInfo').textContent = 'Cleared.';
+      });
 
-
-el('ask').addEventListener('click', handleAsk);
-el('query').addEventListener('keydown', (e) => { if (e.key === 'Enter') handleAsk(); });
-el('clear').addEventListener('click', () => {
-  state.faqs = []; state.embeddings = [];
-  document.querySelector('#matches tbody').innerHTML = '';
-  el('improved').textContent = '';
-  el('why').textContent = '';
-  el('file').value = '';
-  el('fileInfo').textContent = 'Cleared.';
-});
-
-// Boot
-loadModels().catch(err => {
-  setStatus('Model load failed', 'err');
-  setModelStatus('Could not load models. You can still use heuristic mode (semantic search only).');
-});
-
-// Offline caching via Service Worker (inline)
-if ('serviceWorker' in navigator) {
-  const swCode = `
-    const CACHE = 'faq-assistant-cache-v1';
-    self.addEventListener('install', (e) => {
-      self.skipWaiting();
-      e.waitUntil(caches.open(CACHE).then(c => c.addAll(['./'])).catch(()=>{}));
+      // Kick off model load after DOM is ready
+      loadModels();
     });
-    self.addEventListener('activate', (e) => {
-      e.waitUntil(self.clients.claim());
-    });
-    self.addEventListener('fetch', (event) => {
-      const req = event.request;
-      // Cache-first for same-origin; network-first for CDN with cache fallback
-      if (new URL(req.url).origin === self.location.origin) {
-        event.respondWith(caches.match(req).then(res => res || fetch(req).then(resp => {
-          const copy = resp.clone();
-          caches.open(CACHE).then(c => c.put(req, copy));
-          return resp;
-        })));
-      } else {
-        event.respondWith(fetch(req).then(resp => {
-          const copy = resp.clone();
-          caches.open(CACHE).then(c => c.put(req, copy));
-          return resp;
-        }).catch(() => caches.match(req)));
-      }
-    });
-  `;
-  const blob = new Blob([swCode], { type: 'text/javascript' });
-  const url = URL.createObjectURL(blob);
-  navigator.serviceWorker.register(url).catch(()=>{});
-}
-</script>
+  </script>
 </body>
 </html>
