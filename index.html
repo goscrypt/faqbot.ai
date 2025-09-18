@@ -326,57 +326,60 @@ function chunkText(text, chunkSize = 500) {
       }
 
       // File handling
-      el('fileInput').addEventListener('change', async (e) => {
-const file = e.target.files[0];
-if (!file) return;
+el('fileInput').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
 
-setStatus('Reading…');
+  setStatus('Reading…');
 
-let rawText = '';
-if (file.name.endsWith('.docx')) {
-  const reader = new FileReader();
-  rawText = await new Promise((resolve, reject) => {
-    reader.onload = (event) => {
-      mammoth.convertToHtml({ arrayBuffer: event.target.result })
-        .then((res) => resolve(res.value.replace(/<[^>]+>/g, '\n')))
-        .catch(reject);
-    };
-    reader.onerror = reject;
-    reader.readAsArrayBuffer(file);
-  });
-} else {
-  rawText = await file.text();
-}
+  let rawText = '';
+  if (file.name.endsWith('.docx')) {
+    const reader = new FileReader();
+    rawText = await new Promise((resolve, reject) => {
+      reader.onload = (event) => {
+        mammoth.convertToHtml({ arrayBuffer: event.target.result })
+          .then((res) => resolve(res.value.replace(/<[^>]+>/g, '\n')))
+          .catch(reject);
+      };
+      reader.onerror = reject;
+      reader.readAsArrayBuffer(file);
+    });
+  } else {
+    rawText = await file.text();
+  }
 
-const cleaned = rawText.replace(/\s+/g, ' ').trim();
-const faqs = chunkText(cleaned);
+  const cleaned = rawText.replace(/\s+/g, ' ').trim();
+  const faqs = chunkText(cleaned);
 
-if (!faqs.length) {
-  el('fileInfo').textContent = 'No usable content found.';
+  if (!faqs.length) {
+    el('fileInfo').textContent = 'No usable content found.';
+    setStatus('Ready');
+    return;
+  }
+
+  el('fileInfo').textContent = `Loaded ${faqs.length} semantic chunks. Building index…`;
+  setStatus('Indexing…');
+  await buildIndex(faqs);
   setStatus('Ready');
-  return;
-}
+}); // ← this closes the fileInput change handler
 
-el('fileInfo').textContent = `Loaded ${faqs.length} semantic chunks. Building index…`;
-setStatus('Indexing…');
-await buildIndex(faqs);
-setStatus('Ready');
 
-   
+el('ask').addEventListener('click', handleAsk);
+el('query').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') handleAsk();
+});
+el('clear').addEventListener('click', () => {
+  state.faqs = [];
+  state.embeddings = [];
+  document.querySelector('#matches tbody').innerHTML = '';
+  el('improved').textContent = '';
+  el('why').textContent = '';
+  el('fileInfo').textContent = 'Cleared.';
+});
 
-      el('ask').addEventListener('click', handleAsk);
-      el('query').addEventListener('keydown', (e) => { if (e.key === 'Enter') handleAsk(); });
-      el('clear').addEventListener('click', () => {
-        state.faqs = [];
-        state.embeddings = [];
-        document.querySelector('#matches tbody').innerHTML = '';
-        el('improved').textContent = '';
-        el('why').textContent = '';
-        el('fileInfo').textContent = 'Cleared.';
-      });
+// Kick off model load after DOM is ready
+loadModels();
 
-      // Kick off model load after DOM is ready
-      loadModels();
     });
   </script>
 </body>
