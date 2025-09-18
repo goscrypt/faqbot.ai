@@ -44,7 +44,8 @@
   <section>
     <h2>Load training document</h2>
     <div class="row">
-      <input type="file" id="file" accept=".txt,.csv" />
+      <input type="file" id="fileInput" accept=".txt,.csv,.docx" />
+
       <select id="format">
         <option value="auto" selected>Auto-detect format</option>
         <option value="txt">TXT (Q: / A: pairs)</option>
@@ -94,6 +95,7 @@
     <div id="modelStatus" class="small"></div>
   </section>
 </main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.2/mammoth.browser.min.js"></script>
 
 <script type="module">
 // Lightweight, in-browser AI using transformers.js
@@ -323,6 +325,30 @@ async function handleAsk() {
 el('file').addEventListener('change', async (e) => {
   const file = e.target.files[0];
   if (!file) return;
+
+  if (file.name.endsWith('.docx')) {
+    const reader = new FileReader();
+    reader.onload = function(event) {
+      mammoth.convertToHtml({ arrayBuffer: event.target.result })
+        .then(async function(result) {
+          const html = result.value;
+          const text = html.replace(/<[^>]+>/g, ''); // Strip HTML tags
+          const faqs = parseTXT(text); // Reuse your existing parser
+          if (faqs.length === 0) {
+            el('fileInfo').textContent = 'No Q/A pairs found in DOCX.';
+            return;
+          }
+          el('fileInfo').textContent = `Loaded ${faqs.length} Q/A pairs from DOCX. Building index…`;
+          setStatus('Indexing…');
+          await buildIndex(faqs);
+          setStatus('Ready', 'ok');
+        });
+    };
+    reader.readAsArrayBuffer(file);
+    return;
+  }
+
+  // Fallback for TXT or CSV
   const txt = await file.text();
   const fmt = detectFormat(txt);
   let faqs = [];
@@ -340,8 +366,8 @@ el('file').addEventListener('change', async (e) => {
   setStatus('Indexing…');
   await buildIndex(faqs);
   setStatus('Ready', 'ok');
-  el('fileInfo').textContent = `Indexed ${faqs.length} entries.`;
 });
+
 
 el('ask').addEventListener('click', handleAsk);
 el('query').addEventListener('keydown', (e) => { if (e.key === 'Enter') handleAsk(); });
