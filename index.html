@@ -362,8 +362,7 @@ setStatus('Indexing…');
 await buildIndex(faqs);
 setStatus('Ready');
 
-        }
-      });
+   
 
       el('ask').addEventListener('click', handleAsk);
       el('query').addEventListener('keydown', (e) => { if (e.key === 'Enter') handleAsk(); });
